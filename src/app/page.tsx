@@ -6,7 +6,8 @@ import confetti from "canvas-confetti";
 import { 
   Droplets, Plus, RotateCcw, Trophy, Info, X, Settings, 
   History, ChevronRight, User, Activity, Flame, BarChart3, 
-  Coffee, Wine, GlassWater, CupSoda, Bell, Send, Smartphone
+  Coffee, Wine, GlassWater, CupSoda, Bell, Send, Smartphone,
+  Target, Calculator
 } from "lucide-react";
 
 // --- CONFIGURATION (WhatsApp) ---
@@ -98,7 +99,7 @@ export default function JalsaAdvanced() {
     weight: 70,
     activityLevel: 'Moderate',
     manualGoal: 3000,
-    useSmartGoal: true,
+    useSmartGoal: true, // Default to smart, but toggleable
     phoneNumber: '', 
     theme: 'Ocean'
   });
@@ -156,13 +157,16 @@ export default function JalsaAdvanced() {
     }
   }, []);
 
-  // 2. CALCULATE GOAL
+  // 2. CALCULATE GOAL (The Core Logic)
   const dailyGoal = useMemo(() => {
+    // If smart goal is OFF, return the manual goal directly
     if (!settings.useSmartGoal) return settings.manualGoal;
-    let base = settings.weight * 35;
+
+    // Otherwise, calculate based on weight and activity
+    let base = settings.weight * 35; // 35ml per kg is standard
     if (settings.activityLevel === 'Moderate') base += 500;
     if (settings.activityLevel === 'High') base += 1000;
-    return Math.round(base / 100) * 100;
+    return Math.round(base / 100) * 100; // Round to nearest 100
   }, [settings]);
 
   // 3. SAVE DATA EFFECT
@@ -178,23 +182,17 @@ export default function JalsaAdvanced() {
     }
   }, [intake, history, settings, streak, weeklyStats, unlockedBadges, isMounted, dailyGoal]);
 
-  // --- SMART NOTIFICATION LOGIC (The "Best Way") ---
+  // --- SMART NOTIFICATION LOGIC ---
   useEffect(() => {
     if (!isMounted) return;
 
     const checkHydration = () => {
-        // Don't notify if user has already hit the goal (No annoying msg)
         if (intake >= dailyGoal) return;
 
-        // Get time of last drink
         const lastDrinkTime = history.length > 0 ? history[0].timestamp : Date.now();
         const now = Date.now();
         const msSinceLastDrink = now - lastDrinkTime;
         const msSinceLastNotify = now - lastNotificationTime;
-
-        // Condition: 
-        // 1. More than 1 hour (3600000ms) since last drink
-        // 2. More than 1 hour since last notification (Prevent Spam)
         const OneHour = 60 * 60 * 1000; 
         
         if (msSinceLastDrink > OneHour && msSinceLastNotify > OneHour) {
@@ -208,7 +206,6 @@ export default function JalsaAdvanced() {
         }
     };
 
-    // Check every 1 minute
     const interval = setInterval(checkHydration, 60000);
     return () => clearInterval(interval);
   }, [intake, dailyGoal, history, lastNotificationTime, isMounted]);
@@ -237,11 +234,9 @@ export default function JalsaAdvanced() {
     setHistory(prev => [newLog, ...prev]);
     setShowAddMenu(false);
 
-    // Goal Reached?
     if (intake < dailyGoal && newIntake >= dailyGoal) {
         triggerConfetti();
     }
-    // Badge Logic
     if (!unlockedBadges.includes('high_vol') && newIntake >= 4000) {
         setUnlockedBadges(prev => [...prev, 'high_vol']);
         alert("🏆 Achievement Unlocked: Camel Mode!");
@@ -405,6 +400,45 @@ export default function JalsaAdvanced() {
                             <div className="h-2 w-2 rounded-full bg-green-500 animate-pulse"/>
                         </div>
 
+                        {/* Hydration Goal Settings (NEW ADDITION) */}
+                        <div className="bg-white/5 p-5 rounded-3xl space-y-4 border border-white/5">
+                             <div className="flex items-center gap-3 mb-2">
+                                 <div className="p-2 bg-purple-500 rounded-lg"><Target className="w-5 h-5 text-white" /></div>
+                                 <h3 className="font-bold">Hydration Goal</h3>
+                             </div>
+
+                             {/* Smart Goal Toggle */}
+                             <div className="flex items-center justify-between bg-black/20 p-3 rounded-xl">
+                                <div className="flex items-center gap-2">
+                                    <Calculator className="w-4 h-4 text-slate-400"/>
+                                    <div className="flex flex-col">
+                                        <span className="text-sm font-medium">Smart Calculation</span>
+                                        <span className="text-[10px] text-slate-500">Based on weight & activity</span>
+                                    </div>
+                                </div>
+                                <button 
+                                    onClick={() => setSettings({...settings, useSmartGoal: !settings.useSmartGoal})}
+                                    className={`w-11 h-6 rounded-full relative transition-colors duration-200 ease-in-out ${settings.useSmartGoal ? 'bg-cyan-500' : 'bg-slate-600'}`}
+                                >
+                                    <span className={`absolute top-1 w-4 h-4 bg-white rounded-full transition-transform duration-200 ease-in-out ${settings.useSmartGoal ? 'left-6' : 'left-1'}`} />
+                                </button>
+                             </div>
+
+                             {/* Manual Input (Disabled if Smart is ON) */}
+                             <div>
+                                 <label className="text-xs text-slate-400 ml-1">Daily Target (ml)</label>
+                                 <input 
+                                    type="number" 
+                                    value={settings.useSmartGoal ? dailyGoal : settings.manualGoal} // Show calculated if smart, else manual
+                                    disabled={settings.useSmartGoal} // Lock if smart is ON
+                                    onChange={(e) => setSettings({...settings, manualGoal: parseInt(e.target.value) || 0})} 
+                                    className={`w-full bg-slate-900 border rounded-xl px-4 py-3 mt-1 focus:outline-none focus:border-cyan-500 transition ${settings.useSmartGoal ? 'text-slate-500 border-white/5 cursor-not-allowed' : 'text-white border-white/10'}`} 
+                                 />
+                                 {settings.useSmartGoal && <p className="text-[10px] text-cyan-400/70 mt-1 ml-1">*Auto-calculated. Toggle off to edit manually.</p>}
+                             </div>
+                        </div>
+
+                        {/* Personal Data */}
                         <div className="bg-white/5 p-5 rounded-3xl space-y-4 border border-white/5">
                              <div className="flex items-center gap-3 mb-2">
                                  <div className="p-2 bg-blue-500 rounded-lg"><User className="w-5 h-5 text-white" /></div>
