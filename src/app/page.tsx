@@ -103,7 +103,7 @@ export default function JalsaAdvanced() {
   const [intake, setIntake] = useState(0);
   const [history, setHistory] = useState<LogItem[]>([]);
   const [settings, setSettings] = useState<UserSettings>({
-    name: 'Sanjay',
+    name: 'guest',
     weight: 70,
     activityLevel: 'Moderate',
     manualGoal: 3000,
